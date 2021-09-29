@@ -1,8 +1,9 @@
 from fastapi import APIRouter
 from services.api.get_rent_data import get_rent_data
 from typing import Optional
+import logging
 
-
+logger = logging.getLogger('my_logger')
 router = APIRouter(
     prefix='/api',
     tags=['Cathay'],
@@ -11,7 +12,7 @@ router = APIRouter(
 
 @router.post('/get_rent_data')
 async def request_rent_data(
-        region_name: Optional[str] = '', contact: Optional[str] = '', sex: Optional[str] = '', role_name: Optional[str] = '', linkman: Optional[str] = ''
+        region_name: Optional[str] = '', contact: Optional[str] = '', sex_condition: Optional[str] = '', role_name: Optional[str] = '', linkman: Optional[str] = ''
 ) -> dict:
     """
     # 591租屋網 API 查詢
@@ -20,11 +21,11 @@ async def request_rent_data(
 
     ## Args:
 
-        - region_name: 縣市
+        - region_name: 縣市 (e.g. 台北市, 新北市)
 
         - phone/mobile: 聯絡電話
 
-        - sex: 性別要求
+        - sex: 性別要求 (e.g. all_sex, boy, girl)
 
         - role_name: 出租者身分
 
@@ -38,7 +39,7 @@ async def request_rent_data(
     args = {
         'region_name': region_name,
         'contact': contact,
-        'sex': sex,
+        'sex_condition': sex_condition,
         'role_name': role_name,
         'linkman': linkman,
     }
@@ -46,7 +47,6 @@ async def request_rent_data(
     try:
         return get_rent_data(params)
     except Exception as e:
-        print(f"params is: {params}, and type is: {type(params)}")
-        # return {'status': False, 'message': str(e)}
-        raise
-
+        logger.exception(f"[ERROR]: params is: {params}, and type is: {type(params)}")
+        logger.exception(e)
+        return {'status': False, 'message': str(f'[ERROR], please check logger')}

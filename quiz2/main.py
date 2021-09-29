@@ -1,13 +1,20 @@
 import time
 import requests
-from bs4 import BeautifulSoup
 import configparser
 import json
 import math
 from mongo_insert import mongo_insert
+import re
+from logger import create_logger
+# from bs4 import BeautifulSoup
+# from selenium import webdriver
+# from selenium.webdriver.common.keys import Keys
+# from selenium.webdriver.chrome.options import Options
 """
 This module handle crawler and inert into mongo DB
 """
+
+logger = create_logger()
 config = configparser.ConfigParser()
 config.read('./env.conf', encoding='UTF-8')
 header_main = config._sections.get('header_main')
@@ -18,6 +25,14 @@ regions = {
 }
 filter_column = ['id', 'address_img_title', 'region_name', 'linkman', 'role_name', 'shape', 'kind', 'condition']
 # https://rent.591.com.tw/home/{id} detail page
+
+
+def get_sex_condition(cond: str) -> str:
+    result = re.search('(all_sex)|(girl)|(boy)', cond)
+    if result:
+        return result[0]
+    else:
+        return 'unknown'
 
 
 def get_contact_url(obj_id) -> dict:
@@ -50,70 +65,37 @@ def get_total_pages(url: str) -> int:
 
 
 def main():
-    # init the empty result list of dicts to insert
-    result = [
-        {
-            'title': '',
-            'url': '',
-        }
-    ]
-
     try:
         for i in regions.keys():
+            logger.info(f'current regions is: {regions.get(i)}')
             pages_url = f'https://rent.591.com.tw/home/search/rsList?is_new_list=1&type=1&kind=0&searchtype=1&region={i}'
-            # total_pages = get_total_pages(pages_url)
-            total_pages = 1  # for dev
+            total_pages = get_total_pages(pages_url)
+            total_pages = 10  # for dev
             for page in range(1, total_pages + 1):
+                logger.info(f'current pages/total: {page}/{total_pages}')
                 detail_url = f'https://rent.591.com.tw/home/search/rsList?is_new_list=1&type=1&kind=0&searchtype=1&region={i}&firstRow={page * 30}'
                 main_page = requests.get(detail_url, headers=header_main)
                 detail_data = json.loads(main_page.text).get('data').get('data')
 
                 # filter column
-                # filtered_data = dict((k, v) for k, v in detail_data[0].items() if k in filter_column)
                 filtered_data = [dict((k, v) for k, v in d.items() if k in filter_column) for d in detail_data]  # use list comprehension to filter list of dicts
-                # print(filtered_data)
 
                 # use filter column's id to request detail page and get phone/mobile/url
                 # link_info = [map(get_contact_url, d['id']) for d in filtered_data]
 
-                # list(map(get_contact_url, [x['id'] for x in filtered_data]))
-                # link_info = [d for d in filtered_data]
-                # get_contact_url(filtered_data[0].get('id'))
-                # print(get_contact_url(filtered_data[0].get('id')))
+                # handling sex column
+                sex_condition = [get_sex_condition(x['condition']) for x in filtered_data]
+                for j in range(len(filtered_data)):
+                    filtered_data[j].update({'sex_condition': sex_condition[j]})
+                    filtered_data[j].pop('condition')
+                time.sleep(2)
 
                 # insert to mongo
-                mongo_insert(filtered_data)
-    except:
+                # mongo_insert(filtered_data)
+                logger.info(f'insert pages{page} successfully')
+    except Exception as e:
+        logger.exception(e)
         raise
-    # try:
-    #     for page in range(1, 3):
-    #         soup_main = BeautifulSoup(browser.page_source, 'html.parser')  # lxml in my project
-    #         elements_main = soup_main.find_all('li', {'class': 'pull-left infoContent'})
-    #         print(f'==========current pages: {page}/{3}==========')
-    #         for element_main in elements_main:
-    #             title = element_main.find('h3').find('a').getText().strip()
-    #             url = element_main.find('h3').find('a').get('href').strip()
-    #             url = 'https://rent.591.com.tw/home/11389423'
-    #             # id = f"R{re.search(r'(?<=rent-detail-).*(?=.html)', url)[0]}"
-    #             browser.execute_script(f"window.open('{url}', '_blank');")  # open each selling detail page on new tab
-    #             browser.switch_to.window(browser.window_handles[1])  # make sure you switch to the detail page
-    #             # get detail info here
-    #             detail_html = requests.get(url).text
-    #             soup_detail = BeautifulSoup(detail_html, 'html.parser')
-    #             print(soup_detail)
-    #             # get detail info here
-    #             browser.close()  # close detail page and continue to next detail page on main_page
-    #
-    #             if page != 463:
-    #                 page_next = browser.find_element_by_class_name(
-    #                     'pageNext')  # 下一頁按鈕的樣式類別(class)為「pageNext」後，就可以利用Selenium套件進行元素的定位與點擊換頁了
-    #                 page_next.click()
-    #                 time.sleep(3)
-    # except:
-    #     browser.quit()
-    #     raise
-    # finally:
-    #     print('finish all the crawler')
 
 
 if __name__ == '__main__':
