@@ -1,3 +1,25 @@
+## Usage
+
+```sh
+# start mongo db
+cd <path_to_docker-compose.yml> sudo docker-compose up
+
+# craw pages
+python <path_to_main.py> main.py
+
+# init fast-api server
+cd <path_to_app> uvicorn app:cathay_api --reload --port=5001
+
+# call fast-api
+
+- web gui: localhost:5000/docs
+
+- 
+
+# close mongo db
+cd <path_to_docker-compose.yml> sudo docker-compose down
+```
+
 ## quiz1
 
 - How to transfer chinese strings to integer
@@ -43,7 +65,12 @@ sudo ufw allow 27017/tcp  # open firewall on host
 
 
 ### set env
-PYTHONPATH=/home/swc/job_hunt/cathay_bank/quiz2/app
+export PYTHONPATH=/home/swc/job_hunt/cathay_bank/quiz2/app
 
 ### start fast-api server
 uvicorn app:cathay_api --reload --port=5000
+
+## ISSUES
+
+- can not connect to dockerized fas-api services
+- 

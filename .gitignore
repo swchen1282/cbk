@@ -1,3 +1,5 @@
 *.pdf
 /venv
 .idea/
+*.log
+log
